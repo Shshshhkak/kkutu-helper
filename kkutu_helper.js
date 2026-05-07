@@ -1,7 +1,7 @@
 (function() {
     let wordList = [];
     // GitHub 업로드 후 이 URL을 실제 URL로 변경해야 합니다.
-    let GITHUB_JSON_URL = 'https://raw.githubusercontent.com/Shshshhkak/kkutu-helper/main/words_processed.json';
+    let GITHUB_JSON_URL = 'https://raw.githubusercontent.com/Shshshhkak/kkutu-helper/refs/heads/main/words_full.json';
 
     const UI_ID = 'kkutu-helper-ui';
     const LOCAL_STORAGE_KEY = 'kkutu_words_custom';
