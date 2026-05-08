@@ -4,7 +4,7 @@
     
     // GitHub URL - 실제 본인 계정 주소로 변경 필요
     const GITHUB_JSON_URL = 'https://raw.githubusercontent.com/Shshshhkak/kkutu-helper/refs/heads/main/words_full.json';
-    const GITHUB_ATTACK_URL = 'https://raw.githubusercontent.com/Shshshhkak/kkutu-helper/main/attack_words.txt';
+    const GITHUB_ATTACK_URL = 'https://raw.githubusercontent.com/Shshshhkak/kkutu-helper/refs/heads/main/attack_words.txt';
 
     const UI_ID = 'kkutu-helper-v2-ui';
     const LOCAL_STORAGE_KEY = 'kkutu_custom_words';
