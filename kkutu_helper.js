@@ -1,28 +1,41 @@
 (function() {
     let wordList = [];
-    // GitHub 업로드 후 이 URL을 실제 URL로 변경해야 합니다.
-    let GITHUB_JSON_URL = 'https://raw.githubusercontent.com/Shshshhkak/kkutu-helper/refs/heads/main/words_full.json';
+    let attackWords = new Set();
+    
+    // GitHub URL - 실제 본인 계정 주소로 변경 필요
+    const GITHUB_JSON_URL = 'https://raw.githubusercontent.com/Shshshhkak/kkutu-helper/refs/heads/main/words_full.json';
+    const GITHUB_ATTACK_URL = 'https://raw.githubusercontent.com/Shshshhkak/kkutu-helper/main/attack_words.txt';
 
-    const UI_ID = 'kkutu-helper-ui';
-    const LOCAL_STORAGE_KEY = 'kkutu_words_custom';
+    const UI_ID = 'kkutu-helper-v2-ui';
+    const LOCAL_STORAGE_KEY = 'kkutu_custom_words';
 
-    // 1. 데이터 로드
+    // 1. 초기화 및 데이터 로드
     async function init() {
-        console.log('%c[끄투 도우미] 초기화 중...', 'color: #00ff00; font-weight: bold;');
+        console.log('%c[끄투 도우미 v2] 초기화 중...', 'color: #00ff00; font-weight: bold;');
         
         try {
-            const response = await fetch(GITHUB_JSON_URL);
-            if (!response.ok) throw new Error('Network response was not ok');
-            wordList = await response.json();
-            console.log(`[끄투 도우미] ${wordList.length}개의 단어를 불러왔습니다.`);
+            // 메인 단어 목록 로드
+            const wordRes = await fetch(GITHUB_JSON_URL);
+            wordList = await wordRes.json();
+            
+            // 공격/한방 단어 목록 로드 (예시 파일에서 추출한 데이터 기반)
+            try {
+                const attackRes = await fetch(GITHUB_ATTACK_URL);
+                const attackText = await attackRes.text();
+                attackWords = new Set(attackText.split('\n').map(s => s.trim()).filter(s => s));
+            } catch(e) {
+                console.warn('공격 단어 목록을 불러오지 못했습니다.');
+            }
+
+            console.log(`[끄투 도우미] ${wordList.length}개의 단어를 로드했습니다.`);
         } catch (e) {
-            console.warn('[끄투 도우미] 서버에서 데이터를 가져오지 못했습니다. 로컬 데이터를 사용합니다.');
+            console.error('데이터 로드 실패. 로컬 데이터를 확인합니다.');
             const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (localData) wordList = JSON.parse(localData);
         }
 
         createUI();
-        startObserving();
+        startObserver();
     }
 
     // 2. UI 생성
@@ -31,10 +44,119 @@
         const div = document.createElement('div');
         div.id = UI_ID;
         div.style = `
-            position: fixed; top: 50px; right: 20px; z-index: 10000;
-            width: 250px; background: rgba(30, 30, 30, 0.9);
-            color: #fff; padding: 15px; border-radius: 10px;
-            font-family: "Malgun Gothic", sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            position: fixed; top: 60px; right: 20px; z-index: 10000;
+            width: 280px; background: rgba(20, 20, 20, 0.95);
+            color: #fff; padding: 15px; border-radius: 12px;
+            font-family: "Malgun Gothic", sans-serif; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            border: 1px solid #333; pointer-events: none;
+        `;
+        div.innerHTML = `
+            <div style="font-weight: bold; font-size: 18px; margin-bottom: 12px; color: #00e676; border-bottom: 2px solid #00e676; padding-bottom: 8px; display: flex; justify-content: space-between;">
+                <span>끄투 도우미 V2</span>
+                <span style="font-size: 10px; color: #888;">Shshshhkak</span>
+            </div>
+            <div id="kkutu-suggestions-v2">
+                <div style="color: #aaa; text-align: center; padding: 20px 0;">게임을 시작하면 추천이 표시됩니다.</div>
+            </div>
+        `;
+        document.body.appendChild(div);
+    }
+
+    // 3. 추천 로직
+    function suggest(currentLetter) {
+        if (!currentLetter) return;
+        
+        // 두음법칙 적용 (필요 시)
+        const filtered = wordList.filter(item => item.w.startsWith(currentLetter));
+        
+        // 1. 긴거 (길이순)
+        const long = filtered.sort((a, b) => b.l - a.l).slice(0, 2);
+        
+        // 2. 공격 (공격 단어 목록에 포함되거나, 끝 글자가 어려운 것)
+        const attack = filtered.filter(item => item.a || attackWords.has(item.w[item.w.length-1])).sort((a, b) => b.l - a.l).slice(0, 2);
+        
+        // 3. 한방 (다음 단어가 없는 것)
+        const oneShot = filtered.filter(item => item.o).sort((a, b) => b.l - a.l).slice(0, 2);
+        
+        // 4. 일반 (랜덤)
+        const normal = filtered.filter(item => !item.o && !item.a).sort(() => 0.5 - Math.random()).slice(0, 2);
+
+        renderSuggestions(currentLetter, { long, attack, oneShot, normal });
+    }
+
+    function renderSuggestions(char, groups) {
+        const container = document.getElementById('kkutu-suggestions-v2');
+        if (!container) return;
+
+        const html = `
+            <div style="font-size: 15px; margin-bottom: 10px; background: #333; padding: 5px 10px; border-radius: 5px;">
+                현재 글자: <span style="color: #ffeb3b; font-weight: bold;">${char}</span>
+            </div>
+            ${renderRow('긴거', groups.long, '#42a5f5')}
+            ${renderRow('공격', groups.attack, '#ef5350')}
+            ${renderRow('한방', groups.oneShot, '#ab47bc')}
+            ${renderRow('일반', groups.normal, '#66bb6a')}
+        `;
+        container.innerHTML = html;
+    }
+
+    function renderRow(label, words, color) {
+        return `
+            <div style="margin-bottom: 8px;">
+                <div style="color: ${color}; font-size: 12px; font-weight: bold; margin-bottom: 2px;">● ${label}</div>
+                <div style="background: rgba(255,255,255,0.05); padding: 5px 8px; border-radius: 4px; font-size: 14px; min-height: 20px;">
+                    ${words.length > 0 ? words.map(w => w.w).join(', ') : '<span style="color:#555">없음</span>'}
+                </div>
+            </div>
+        `;
+    }
+
+    // 4. 감시 (MutationObserver)
+    function startObserver() {
+        let lastChar = "";
+        let lastHistory = "";
+
+        const observer = new MutationObserver(() => {
+            // 1. 현재 글자 인식
+            const currentElem = document.querySelector('.jjoriping-word-current');
+            if (currentElem) {
+                const char = currentElem.innerText.trim();
+                if (char && char !== lastChar && char.length === 1) {
+                    suggest(char);
+                    lastChar = char;
+                }
+            } else {
+                lastChar = "";
+            }
+
+            // 2. 단어 추가/삭제 (요청하신 기능 유지)
+            const history = document.querySelectorAll('.jjoriping-word-history .word');
+            if (history.length > 0) {
+                const latest = history[history.length - 1].innerText.trim();
+                if (latest && latest !== lastHistory) {
+                    handleWordHistory(latest);
+                    lastHistory = latest;
+                }
+            }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function handleWordHistory(word) {
+        // 단어가 목록에 없으면 추가
+        if (!wordList.some(i => i.w === word)) {
+            const lastChar = word[word.length - 1];
+            const nextCount = wordList.filter(i => i.w.startsWith(lastChar)).length;
+            const newItem = { w: word, l: word.length, o: nextCount === 0, a: nextCount < 5 };
+            wordList.push(newItem);
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(wordList));
+            console.log('[끄투 도우미] 새 단어 추가:', word);
+        }
+    }
+
+    init();
+})();            font-family: "Malgun Gothic", sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             border: 1px solid #444; pointer-events: none;
         `;
         div.innerHTML = `
