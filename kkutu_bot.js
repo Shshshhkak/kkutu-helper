@@ -1,107 +1,171 @@
 // ==UserScript==
-// @name         끄투코리아 화학 단어 자동 입력기 (최종 확장판)
-// @namespace    http://tampermonkey.net/
-// @version      1.1
-// @description  화학 단어 대결 전용, 150개 이상의 긴 단어 포함 및 탐지 회피 강화
-// @author       Manus
+// @name         끄투코리아 자동 플레이 (끝말잇기 + 단어 대결)
+// @namespace    https://kkutu.co.kr
+// @version      1.3
+// @description  끝말잇기 & 단어대결 자동 입력 (game_input 우회)
+// @author       Grok
 // @match        https://kkutu.co.kr/*
 // @grant        none
+// @run-at       document-start
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
-    // 확장된 화학 단어 데이터베이스
-    const chemWords = [
-        "니코틴아마이드아데닌다이뉴클레오타이드", "니코틴아미드아데닌디뉴클레오티드", "클로로트리플루오로에틸렌중합체", "마그네슘옥시클로라이드시멘트", "아크릴로나이트릴스타이렌수지",
-        "트라이메틸렌트라이나이트라민", "사이클로헥실설파민산나트륨", "아데노신트라이포스파테이스", "아스파르트산탈암모니아효소", "제조용기체크로마토그래피법",
-        "나이트릴로트라이아세트산", "다이아세트산에틸렌글리콜", "분취기체크로마토그라프법", "분취기체크로마토그래피법", "비대칭다이메틸하이드라진",
-        "사이클로올레핀계탄화수소", "시클로헥실술파민산나트륨", "아말감농축폴라로그라프법", "아데노신트리포스파타아제", "아스파트산탈암모니아효소",
-        "아크릴로니트릴스티렌수지", "얇은층젤크로마토그래피법", "얇은층겔크로마토그라프법", "에리오크로뮴사이아닌아르", "에틸렌다이아민사아세트산",
-        "이온교환크로마토그라프법", "폴리테트라플루오로에틸렌", "글리세린다이아세테이트", "기체크로마토질량분석법", "다이메틸아미노안티피린",
-        "다이사이안다이아마이드", "다이클로로플루오레세인", "디개미산글리콜에스테르", "리액터그레이드지르코늄", "린산트리크레질에스테르",
-        "박막농축폴라로그라프법", "불포화폴리에스테르수지", "스타이렌계이온교환수지", "스타이렌뷰타다이엔고무", "시클로올레핀계탄화수소",
-        "시클로파라핀계탄화수소", "아세틸콜린에스터레이스", "아세틸콜린에스테라아제", "아이오딘화칼륨녹말용액", "아이오딘화칼륨녹말종이",
-        "아이오딘화칼륨전분용액", "약염기성음이온교환수지", "에틸렌디아민사아세트산", "카르복시메틸셀룰로오스", "타르타르산안티모닐칼륨",
-        "트리메틸렌트리니트라민", "파라하이드록시아조벤젠", "포도술산칼리움나트리움", "폴리에스테르계합성섬유", "하이드록시하이드로퀴논",
-        "헥사사이아노철삼산칼륨", "헥사사이아노철이산칼륨", "고주파폴라로그라프법", "글리세린디아세테이트", "나이트릴로트라이초산",
-        "네모파폴라로그래피법", "뇨소포름알데히드수지", "다이나이트로나프탈렌", "다이나이트로레조시놀", "다이메틸나이트로사민",
-        "다이뷰틸프탈레이트", "다이아이소사이아네이트", "다이클로로벤젠", "다이클로로에탄", "다이클로로메탄",
-        "다이페닐아민", "다이페닐카바존", "디나이트로나프탈린", "디메틸니트로사민", "디메틸포름아미드",
-        "디부틸프탈레이트", "디아이소시아네이트", "디클로로벤젠", "디클로로에탄", "디클로로메탄",
-        "디페닐카르바존", "레이온계합성섬유", "메틸아이소뷰틸케톤", "메틸에틸케톤", "무수프탈산",
-        "방향족탄화수소", "벤젠설폰산나트륨", "비결정성탄소", "비닐리덴클로라이드수지", "비대칭디메틸히드라진",
-        "사이클로알케인", "사이클로알카인", "사이클로알칸", "사이클로파라핀계탄화수소", "산성음이온교환수지",
-        "소듐아세테이트", "수산화알루미늄", "수산화칼슘", "수산화칼륨", "스테아르산나트륨",
-        "시클로알칸", "시클로알켄", "시클로알킨", "아디프산", "아세토니트릴",
-        "아세트산나트륨", "아세트산에틸", "아세트알데히드", "아세톤", "아스파탐",
-        "아스피린", "아크릴산", "아크릴로니트릴", "알루미늄", "알코올",
-        "암모니아", "에탄올", "에탄", "에틸렌", "에틸렌글리콜",
-        "염화나트륨", "염화칼슘", "염화칼륨", "염화수소", "옥살산",
-        "요소", "이산화탄소", "이산화황", "일산화탄소", "일산화질소",
-        "질산", "질산나트륨", "질산칼륨", "질산암모늄", "질소",
-        "탄산", "탄산나트륨", "탄산수소나트륨", "탄산칼슘", "탄소",
-        "테트라클로로에틸렌", "톨루엔", "페놀", "포름알데히드", "포도당",
-        "프로판", "프로필렌", "프루시안블루", "플루오린", "피리딘",
-        "하이드라진", "헬륨", "황", "황산", "황산나트륨",
-        "황산칼륨", "황산암모늄", "황산구리", "황화수소", "희토류"
-    ];
+    let autoPlayEnabled = true;
+    let wordList = new Set();
+    let usedWords = new Set();
+    let lastInputTime = 0;
 
-    console.log("끄투 화학 매크로 (확장판) 로드 완료");
+    // ==================== 단어장 로드 ====================
+    async function loadWordDB() {
+        // 좋은 공개 단어장 raw URL (필요시 더 추가)
+        const urls = [
+            'https://raw.githubusercontent.com/acidsound/korean_wordlist/master/wordslist.txt', // 기본 한글 단어장
+            // 다른 단어장 raw URL 추가 가능
+        ];
 
-    function safeInput(element, text) {
-        if (!element) return;
-        element.value = text;
-        element.dispatchEvent(new Event('input', { bubbles: true }));
-        element.dispatchEvent(new Event('change', { bubbles: true }));
-
-        // 서버 측 키 입력 카운트(_tcnt) 우회
-        for (let i = 0; i < text.length + 2; i++) {
-            element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, keyCode: 65 }));
+        for (let url of urls) {
+            try {
+                const res = await fetch(url);
+                const text = await res.text();
+                text.split('\n').forEach(line => {
+                    const w = line.trim();
+                    if (w.length >= 2 && /^[가-힣]+$/.test(w)) { // 한글만
+                        wordList.add(w);
+                    }
+                });
+            } catch (e) {
+                console.warn("단어장 로드 실패:", url);
+            }
         }
-
-        // 엔터 입력
-        const enterDown = new KeyboardEvent('keydown', { bubbles: true, keyCode: 13, which: 13 });
-        const enterUp = new KeyboardEvent('keyup', { bubbles: true, keyCode: 13, which: 13 });
-        element.dispatchEvent(enterDown);
-        element.dispatchEvent(enterUp);
+        console.log(`[AutoKkutu] 단어장 로드 완료 → ${wordList.size}개`);
     }
 
-    setInterval(() => {
-        try {
-            const inputField = document.querySelector('input[id^="UserMassage"]');
-            if (!inputField) return;
+    // ==================== game_input 우회 입력 ====================
+    function bypassInput(text) {
+        if (Date.now() - lastInputTime < 600) return false; // 연속 입력 방지
 
-            const isMyTurn = inputField.placeholder.includes("당신의 차례") || 
-                             document.body.innerText.includes("당신의 차례");
+        const input = document.querySelector('#hereText') || 
+                     document.querySelector('input[type="text"]') || 
+                     document.querySelector('.game-input');
 
-            if (isMyTurn) {
-                const currentWordElem = document.querySelector('.current-word') || 
-                                       document.querySelector('.target-word');
-                
-                let startChar = "";
-                if (currentWordElem) {
-                    const fullText = currentWordElem.innerText.trim();
-                    startChar = fullText.charAt(fullText.length - 1);
-                }
+        if (!input) return false;
 
-                // 시작 글자에 맞는 단어 중 가장 긴 단어 선택
-                let matches = startChar ? chemWords.filter(w => w.startsWith(startChar)) : chemWords;
-                matches.sort((a, b) => b.length - a.length);
+        input.value = text;
 
-                let targetWord = matches.length > 0 ? matches[0] : chemWords[Math.floor(Math.random() * chemWords.length)];
+        // 한 글자씩 keyup dispatch
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            const keyEvent = new KeyboardEvent('keyup', {
+                key: char,
+                code: `Key${char.toUpperCase()}`,
+                keyCode: char.charCodeAt(0),
+                which: char.charCodeAt(0),
+                bubbles: true
+            });
+            input.dispatchEvent(keyEvent);
+        }
 
-                if (targetWord) {
-                    setTimeout(() => {
-                        safeInput(inputField, targetWord);
-                    }, 600 + Math.random() * 400);
-                }
+        // Enter
+        const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+        input.dispatchEvent(enterEvent);
+
+        console.log(`[AutoKkutu] 입력: ${text}`);
+        usedWords.add(text);
+        lastInputTime = Date.now();
+        return true;
+    }
+
+    // ==================== 끝말잇기 단어 찾기 ====================
+    function findWordForEndGame(lastChar) {
+        let candidates = [];
+
+        for (let word of wordList) {
+            if (usedWords.has(word)) continue;
+            if (word[0] === lastChar && word.length >= 2) {
+                candidates.push(word);
             }
-        } catch (e) {}
-    }, 2000);
+        }
 
-    // 복사 붙여넣기 방지 해제
-    window.addEventListener('paste', (e) => e.stopImmediatePropagation(), true);
-    window.addEventListener('drop', (e) => e.stopImmediatePropagation(), true);
+        if (candidates.length === 0) return null;
 
-})()
+        // 우선순위: 적당한 길이 (너무 짧거나 너무 길지 않게)
+        candidates.sort((a, b) => {
+            const scoreA = Math.abs(a.length - 4); // 4~5글자 선호
+            const scoreB = Math.abs(b.length - 4);
+            return scoreA - scoreB;
+        });
+
+        return candidates[0];
+    }
+
+    // ==================== 단어 대결 (Daneo) ====================
+    function findWordForDaneo(hint) {
+        let candidates = [];
+        for (let word of wordList) {
+            if (usedWords.has(word)) continue;
+            if (word.includes(hint) || hint.includes(word[0])) { // 유연하게
+                candidates.push(word);
+            }
+        }
+        return candidates.length ? candidates[0] : null;
+    }
+
+    // ==================== 메인 루프 ====================
+    function mainLoop() {
+        if (!autoPlayEnabled) return;
+
+        const here = document.querySelector('#hereText') || document.querySelector('input[placeholder]');
+        if (!here) return;
+
+        // 내 턴 판단 (클래스나 스타일로)
+        const isMyTurn = document.querySelector('.my-turn') || 
+                        here.style.display !== 'none' ||
+                        document.querySelector('[class*="turn"]');
+
+        if (!isMyTurn) return;
+
+        let hint = here.placeholder || here.value || '';
+        let lastChar = '';
+
+        // 끝말잇기: 마지막 글자 추출
+        if (hint.length > 0) {
+            lastChar = hint[hint.length - 1]; // 끝말잇기 힌트
+        }
+
+        let bestWord = null;
+
+        // 모드 판단
+        if (lastChar && /^[가-힣]$/.test(lastChar)) {
+            bestWord = findWordForEndGame(lastChar); // 끝말잇기
+        } else {
+            bestWord = findWordForDaneo(hint); // 단어 대결
+        }
+
+        if (bestWord) {
+            bypassInput(bestWord);
+        }
+    }
+
+    // ==================== 단축키 & 초기화 ====================
+    document.addEventListener('keydown', e => {
+        if (e.altKey && e.key.toLowerCase() === 'a') {
+            autoPlayEnabled = !autoPlayEnabled;
+            console.log(`[AutoKkutu] 자동 플레이 ${autoPlayEnabled ? 'ON' : 'OFF'}`);
+        }
+    });
+
+    function init() {
+        loadWordDB();
+        setInterval(mainLoop, 650); // 체크 간격
+
+        console.log('%c[끄투 자동] 끝말잇기+단어대결 버전 로드 완료 | Alt+A 토글', 'color:#00ff88; font-weight:bold');
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
