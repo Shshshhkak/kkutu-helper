@@ -1,213 +1,107 @@
 // ==UserScript==
-// @name         끄투 자동화 봇 V2 (대용량 사전 지원)
+// @name         끄투코리아 화학 단어 자동 입력기 (최종 확장판)
 // @namespace    http://tampermonkey.net/
-// @version      2.0.0
-// @description  외부 JSON 사전을 사용하여 끄투 게임을 자동으로 플레이합니다. 개인 서버 전용!
-// @author       Manus AI
-// @match        http://localhost:*/*
-// @match        http://127.0.0.1:*/*
-// @match        http://YOUR_SERVER_ADDRESS/*
-// @grant        GM_xmlhttpRequest
-// @connect      raw.githubusercontent.com
-// @run-at       document-end
+// @version      1.1
+// @description  화학 단어 대결 전용, 150개 이상의 긴 단어 포함 및 탐지 회피 강화
+// @author       Manus
+// @match        https://kkutu.co.kr/*
+// @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // ============================================
-    // 설정 섹션
-    // ============================================
-    
-    const ALLOWED_HOSTS = [
-        'localhost,
-        '127.0.0.1',
-        'kkutu.co.kr' // 본인 사이트 주소로 변경
+    // 확장된 화학 단어 데이터베이스
+    const chemWords = [
+        "니코틴아마이드아데닌다이뉴클레오타이드", "니코틴아미드아데닌디뉴클레오티드", "클로로트리플루오로에틸렌중합체", "마그네슘옥시클로라이드시멘트", "아크릴로나이트릴스타이렌수지",
+        "트라이메틸렌트라이나이트라민", "사이클로헥실설파민산나트륨", "아데노신트라이포스파테이스", "아스파르트산탈암모니아효소", "제조용기체크로마토그래피법",
+        "나이트릴로트라이아세트산", "다이아세트산에틸렌글리콜", "분취기체크로마토그라프법", "분취기체크로마토그래피법", "비대칭다이메틸하이드라진",
+        "사이클로올레핀계탄화수소", "시클로헥실술파민산나트륨", "아말감농축폴라로그라프법", "아데노신트리포스파타아제", "아스파트산탈암모니아효소",
+        "아크릴로니트릴스티렌수지", "얇은층젤크로마토그래피법", "얇은층겔크로마토그라프법", "에리오크로뮴사이아닌아르", "에틸렌다이아민사아세트산",
+        "이온교환크로마토그라프법", "폴리테트라플루오로에틸렌", "글리세린다이아세테이트", "기체크로마토질량분석법", "다이메틸아미노안티피린",
+        "다이사이안다이아마이드", "다이클로로플루오레세인", "디개미산글리콜에스테르", "리액터그레이드지르코늄", "린산트리크레질에스테르",
+        "박막농축폴라로그라프법", "불포화폴리에스테르수지", "스타이렌계이온교환수지", "스타이렌뷰타다이엔고무", "시클로올레핀계탄화수소",
+        "시클로파라핀계탄화수소", "아세틸콜린에스터레이스", "아세틸콜린에스테라아제", "아이오딘화칼륨녹말용액", "아이오딘화칼륨녹말종이",
+        "아이오딘화칼륨전분용액", "약염기성음이온교환수지", "에틸렌디아민사아세트산", "카르복시메틸셀룰로오스", "타르타르산안티모닐칼륨",
+        "트리메틸렌트리니트라민", "파라하이드록시아조벤젠", "포도술산칼리움나트리움", "폴리에스테르계합성섬유", "하이드록시하이드로퀴논",
+        "헥사사이아노철삼산칼륨", "헥사사이아노철이산칼륨", "고주파폴라로그라프법", "글리세린디아세테이트", "나이트릴로트라이초산",
+        "네모파폴라로그래피법", "뇨소포름알데히드수지", "다이나이트로나프탈렌", "다이나이트로레조시놀", "다이메틸나이트로사민",
+        "다이뷰틸프탈레이트", "다이아이소사이아네이트", "다이클로로벤젠", "다이클로로에탄", "다이클로로메탄",
+        "다이페닐아민", "다이페닐카바존", "디나이트로나프탈린", "디메틸니트로사민", "디메틸포름아미드",
+        "디부틸프탈레이트", "디아이소시아네이트", "디클로로벤젠", "디클로로에탄", "디클로로메탄",
+        "디페닐카르바존", "레이온계합성섬유", "메틸아이소뷰틸케톤", "메틸에틸케톤", "무수프탈산",
+        "방향족탄화수소", "벤젠설폰산나트륨", "비결정성탄소", "비닐리덴클로라이드수지", "비대칭디메틸히드라진",
+        "사이클로알케인", "사이클로알카인", "사이클로알칸", "사이클로파라핀계탄화수소", "산성음이온교환수지",
+        "소듐아세테이트", "수산화알루미늄", "수산화칼슘", "수산화칼륨", "스테아르산나트륨",
+        "시클로알칸", "시클로알켄", "시클로알킨", "아디프산", "아세토니트릴",
+        "아세트산나트륨", "아세트산에틸", "아세트알데히드", "아세톤", "아스파탐",
+        "아스피린", "아크릴산", "아크릴로니트릴", "알루미늄", "알코올",
+        "암모니아", "에탄올", "에탄", "에틸렌", "에틸렌글리콜",
+        "염화나트륨", "염화칼슘", "염화칼륨", "염화수소", "옥살산",
+        "요소", "이산화탄소", "이산화황", "일산화탄소", "일산화질소",
+        "질산", "질산나트륨", "질산칼륨", "질산암모늄", "질소",
+        "탄산", "탄산나트륨", "탄산수소나트륨", "탄산칼슘", "탄소",
+        "테트라클로로에틸렌", "톨루엔", "페놀", "포름알데히드", "포도당",
+        "프로판", "프로필렌", "프루시안블루", "플루오린", "피리딘",
+        "하이드라진", "헬륨", "황", "황산", "황산나트륨",
+        "황산칼륨", "황산암모늄", "황산구리", "황화수소", "희토류"
     ];
-    
-    const WORD_DATA_URL = 'https://raw.githubusercontent.com/Shshshhkak/kkutu-helper/refs/heads/main/words_full.json';
 
-    // 현재 호스트 확인
-    const currentHost = window.location.hostname;
-    if (!ALLOWED_HOSTS.includes(currentHost)) {
-        console.warn('[끄투봇] 공용 서버에서는 작동하지 않습니다. 개인 서버에서만 사용하세요.');
-        return;
+    console.log("끄투 화학 매크로 (확장판) 로드 완료");
+
+    function safeInput(element, text) {
+        if (!element) return;
+        element.value = text;
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+
+        // 서버 측 키 입력 카운트(_tcnt) 우회
+        for (let i = 0; i < text.length + 2; i++) {
+            element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, keyCode: 65 }));
+        }
+
+        // 엔터 입력
+        const enterDown = new KeyboardEvent('keydown', { bubbles: true, keyCode: 13, which: 13 });
+        const enterUp = new KeyboardEvent('keyup', { bubbles: true, keyCode: 13, which: 13 });
+        element.dispatchEvent(enterDown);
+        element.dispatchEvent(enterUp);
     }
 
-    // ============================================
-    // 전역 변수 및 상태
-    // ============================================
-    
-    let wordList = [];
-    let isDataLoaded = false;
-    let isOnMacro = true;
-    let usedWords = [];
-    let canResetWords = true;
-    let lastWord = '';
-    let delay = 100;
+    setInterval(() => {
+        try {
+            const inputField = document.querySelector('input[id^="UserMassage"]');
+            if (!inputField) return;
 
-    // ============================================
-    // 데이터 로딩
-    // ============================================
+            const isMyTurn = inputField.placeholder.includes("당신의 차례") || 
+                             document.body.innerText.includes("당신의 차례");
 
-    function loadWordData() {
-        console.log('[끄투봇] 단어 데이터를 불러오는 중...');
-        
-        GM_xmlhttpRequest({
-            method: 'GET',
-            url: WORD_DATA_URL,
-            onload: function(response) {
-                try {
-                    wordList = JSON.parse(response.responseText);
-                    isDataLoaded = true;
-                    console.log(`[끄투봇] 단어 데이터 로드 완료! (총 ${wordList.length}개)`);
-                } catch (e) {
-                    console.error('[끄투봇] 데이터 파싱 오류:', e);
+            if (isMyTurn) {
+                const currentWordElem = document.querySelector('.current-word') || 
+                                       document.querySelector('.target-word');
+                
+                let startChar = "";
+                if (currentWordElem) {
+                    const fullText = currentWordElem.innerText.trim();
+                    startChar = fullText.charAt(fullText.length - 1);
                 }
-            },
-            onerror: function(err) {
-                console.error('[끄투봇] 데이터 로드 실패:', err);
-            }
-        });
-    }
 
-    // ============================================
-    // 핵심 로직
-    // ============================================
+                // 시작 글자에 맞는 단어 중 가장 긴 단어 선택
+                let matches = startChar ? chemWords.filter(w => w.startsWith(startChar)) : chemWords;
+                matches.sort((a, b) => b.length - a.length);
 
-    function getCurrentWord() {
-        try {
-            const elements = document.getElementsByClassName('jjo-display ellipse');
-            if (elements && elements.length > 0) {
-                return elements[0].innerHTML.trim();
-            }
-        } catch (e) {}
-        return '';
-    }
+                let targetWord = matches.length > 0 ? matches[0] : chemWords[Math.floor(Math.random() * chemWords.length)];
 
-    function findBestWord(startChar) {
-        if (!isDataLoaded || !startChar) return null;
-
-        // 괄호 처리 (예: 륙(육) -> 륙)
-        let targetChar = startChar;
-        let altChar = null;
-        
-        if (startChar.includes('(')) {
-            targetChar = startChar.substring(0, 1);
-            altChar = startChar.substring(2, 3);
-        }
-
-        // 필터링: 시작 글자 일치 + 미사용 단어 + '다'로 끝나지 않음 + 특수문자 제외
-        let candidates = wordList.filter(word => {
-            const startsWith = word.startsWith(targetChar) || (altChar && word.startsWith(altChar));
-            return startsWith && 
-                   !usedWords.includes(word) && 
-                   !word.endsWith('다') &&
-                   !/[^가-힣]/.test(word); // 한글만 허용
-        });
-
-        if (candidates.length === 0) return null;
-
-        // 전략: 가장 긴 단어 우선
-        candidates.sort((a, b) => b.length - a.length);
-
-        // 상위 3개 중 랜덤 선택 (탐지 회피)
-        const range = Math.min(candidates.length, 3);
-        return candidates[Math.floor(Math.random() * range)];
-    }
-
-    function sendWord(word) {
-        try {
-            usedWords.push(word);
-            lastWord = word;
-
-            const inputBoxes = document.querySelectorAll('[maxlength="200"]');
-            if (inputBoxes && inputBoxes.length > 1) {
-                const input = inputBoxes[1];
-                
-                // 한 글자씩 입력 시뮬레이션 (Anti-cheat 대응)
-                input.value = '';
-                let i = 0;
-                const typeInterval = setInterval(() => {
-                    if (i < word.length) {
-                        input.value += word[i];
-                        i++;
-                    } else {
-                        clearInterval(typeInterval);
-                        // 전송 버튼 클릭
-                        const sendBtn = document.querySelector('#ChatBtn');
-                        if (sendBtn) sendBtn.click();
-                        console.log('[끄투봇] 전송 완료:', word);
-                    }
-                }, Math.random() * 50 + 50);
-            }
-        } catch (e) {
-            console.error('[끄투봇] 전송 오류:', e);
-        }
-    }
-
-    // ============================================
-    // 루프 및 제어
-    // ============================================
-
-    function mainLoop() {
-        if (!isDataLoaded || !isOnMacro) return;
-
-        try {
-            const gameInput = document.getElementsByClassName('game-input');
-            if (gameInput && gameInput[0] && gameInput[0].style.display === 'block') {
-                const currentWord = getCurrentWord();
-                
-                if (currentWord && currentWord !== lastWord && currentWord.length === 1) {
-                    console.log('[끄투봇] 내 차례! 제시어:', currentWord);
-                    
-                    // 생각하는 척 딜레이
+                if (targetWord) {
                     setTimeout(() => {
-                        const bestWord = findBestWord(currentWord);
-                        if (bestWord) {
-                            sendWord(bestWord);
-                        } else {
-                            console.log('[끄투봇] 단어를 찾지 못했습니다.');
-                            lastWord = currentWord; // 중복 시도 방지
-                        }
-                    }, Math.random() * 1000 + 500);
+                        safeInput(inputField, targetWord);
+                    }, 600 + Math.random() * 400);
                 }
             }
         } catch (e) {}
-    }
+    }, 2000);
 
-    // 라운드 종료 감지 (체인 수 확인)
-    function checkRoundEnd() {
-        try {
-            const chainEl = document.getElementsByClassName('chain')[0];
-            if (chainEl) {
-                const chain = parseInt(chainEl.textContent);
-                if (chain === 0 && canResetWords) {
-                    usedWords = [];
-                    lastWord = '';
-                    canResetWords = false;
-                    console.log('[끄투봇] 라운드 종료 - 기록 초기화');
-                } else if (chain > 0) {
-                    canResetWords = true;
-                }
-            }
-        } catch (e) {}
-    }
+    // 복사 붙여넣기 방지 해제
+    window.addEventListener('paste', (e) => e.stopImmediatePropagation(), true);
+    window.addEventListener('drop', (e) => e.stopImmediatePropagation(), true);
 
-    // 명령어 처리
-    function checkCommands() {
-        const input = document.querySelectorAll('[maxlength="200"]')[1];
-        if (!input) return;
-        
-        const val = input.value.trim();
-        if (val === '/a') { isOnMacro = true; input.value = ''; console.log('[끄투봇] 매크로 ON'); }
-        else if (val === '/s') { isOnMacro = false; input.value = ''; console.log('[끄투봇] 매크로 OFF'); }
-    }
-
-    // 초기화
-    loadWordData();
-    setInterval(mainLoop, 200);
-    setInterval(checkRoundEnd, 500);
-    setInterval(checkCommands, 500);
-
-})();
+})()
